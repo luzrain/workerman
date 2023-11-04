@@ -64,13 +64,6 @@ class Event implements EventInterface
     protected int $timerId = 0;
 
     /**
-     * Event class name.
-     *
-     * @var string
-     */
-    protected string $eventClassName = '';
-
-    /**
      * @var ?callable
      */
     protected $errorHandler = null;
@@ -80,18 +73,7 @@ class Event implements EventInterface
      */
     public function __construct()
     {
-        if (\class_exists('\\\\Event', false)) {
-            $className = '\\\\Event';
-        } else {
-            $className = '\Event';
-        }
-        $this->eventClassName = $className;
-        if (\class_exists('\\\\EventBase', false)) {
-            $className = '\\\\EventBase';
-        } else {
-            $className = '\EventBase';
-        }
-        $this->eventBase = new $className();
+        $this->eventBase = new \EventBase();
     }
 
     /**
@@ -99,9 +81,8 @@ class Event implements EventInterface
      */
     public function delay(float $delay, callable $func, array $args = []): int
     {
-        $className = $this->eventClassName;
         $timerId = $this->timerId++;
-        $event = new $className($this->eventBase, -1, $className::TIMEOUT, function () use ($func, $args, $timerId) {
+        $event = new \Event($this->eventBase, -1, \Event::TIMEOUT, function () use ($func, $args, $timerId) {
             unset($this->eventTimer[$timerId]);
             $this->safeCall($func, $args);
         });
@@ -138,9 +119,8 @@ class Event implements EventInterface
      */
     public function repeat(float $interval, callable $func, array $args = []): int
     {
-        $className = $this->eventClassName;
         $timerId = $this->timerId++;
-        $event = new $className($this->eventBase, -1, $className::TIMEOUT | $className::PERSIST, fn () => $this->safeCall($func, $args));
+        $event = new \Event($this->eventBase, -1, \Event::TIMEOUT | \Event::PERSIST, fn () => $this->safeCall($func, $args));
         if (!$event->addTimer($interval)) {
             throw new \RuntimeException("Event::addTimer($interval) failed");
         }
@@ -153,9 +133,8 @@ class Event implements EventInterface
      */
     public function onReadable($stream, callable $func): void
     {
-        $className = $this->eventClassName;
         $fdKey = (int)$stream;
-        $event = new $className($this->eventBase, $stream, $className::READ | $className::PERSIST, fn () => $this->safeCall($func, [$stream]));
+        $event = new \Event($this->eventBase, $stream, \Event::READ | \Event::PERSIST, fn () => $this->safeCall($func, [$stream]));
         if ($event->add()) {
             $this->readEvents[$fdKey] = $event;
         }
@@ -180,9 +159,8 @@ class Event implements EventInterface
      */
     public function onWritable($stream, callable $func): void
     {
-        $className = $this->eventClassName;
         $fdKey = (int)$stream;
-        $event = new $className($this->eventBase, $stream, $className::WRITE | $className::PERSIST, fn () => $this->safeCall($func, [$stream]));
+        $event = new \Event($this->eventBase, $stream, \Event::WRITE | \Event::PERSIST, fn () => $this->safeCall($func, [$stream]));
         if ($event->add()) {
             $this->writeEvents[$fdKey] = $event;
         }
@@ -207,9 +185,8 @@ class Event implements EventInterface
      */
     public function onSignal(int $signal, callable $func): void
     {
-        $className = $this->eventClassName;
         $fdKey = $signal;
-        $event = $className::signal($this->eventBase, $signal, fn () => $this->safeCall($func, [$signal]));
+        $event = \Event::signal($this->eventBase, $signal, fn () => $this->safeCall($func, [$signal]));
         if ($event->add()) {
             $this->eventSignal[$fdKey] = $event;
         }
